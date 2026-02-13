@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LSM Column Design (Ultimate)</title>
+    <title>LSM Column Design (Final)</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #2c3e50;
-            --secondary: #d35400; /* Darker Orange for Engineering feel */
+            --secondary: #d35400; /* Engineering Orange */
             --paper-bg: #fffbf0; 
             --ink-color: #000000;
             --fail-color: #c0392b;
@@ -19,7 +19,7 @@
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #fcefe6;
+            background-color: #fdf2e9;
             color: #333;
         }
 
@@ -103,6 +103,331 @@
         .sub { vertical-align: sub; font-size: 0.7em; }
         .sup { vertical-align: super; font-size: 0.7em; }
 
+        .result-highlight {
+            background-color: rgba(39, 174, 96, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--pass-color);
+            border: 1px solid var(--pass-color);
+        }
+        
+        .fail-box {
+            background-color: rgba(192, 57, 43, 0.08);
+            border-left: 4px solid var(--fail-color);
+            padding: 10px;
+            margin: 10px 0;
+            color: #800;
+            font-size: 0.95em;
+        }
+
+        .note-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 25px;
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            display: none; 
+            line-height: 1.5;
+        }
+
+        .link-display {
+            background: #f1f2f6; padding: 12px; text-align: center;
+            font-family: monospace; border-radius: 6px; margin: 15px 0;
+            word-break: break-all; border: 1px dashed #bdc3c7;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 style="margin:0;">LSM Column Design</h1>
+        <p style="margin:8px 0 0; opacity:0.9; font-weight:300;">Limit State Method (IS 456:2000)</p>
+    </header>
+
+    <div id="inputPage">
+        <div class="card">
+            <label>1. Service Axial Load (P) in KN</label>
+            <input type="number" id="load" placeholder="Example: 850">
+            <small style="color:#666;">(App will multiply by 1.5 for Factored Load)</small>
+
+            <label>2. Unsupported Length (L) in Metres</label>
+            <input type="number" id="length" step="0.1" placeholder="Example: 5.0">
+
+            <label>3. End Conditions (IS 456 Table 28)</label>
+            <select id="endCondition">
+                <option value="0.65">Effectively held in position and restrained against rotation in both ends (0.65 L)</option>
+                <option value="0.80">Effectively held in position at both ends, restrained against rotation at one end (0.80 L)</option>
+                <option value="1.00">Effectively held in position at both ends, but not restrained against rotation (1.00 L)</option>
+                <option value="2.00">Effectively held in position and restrained against rotation at one end but not held in position nor restrained against rotation at the other end (2.00 L)</option>
+            </select>
+
+            <label>4. Concrete Grade (fck)</label>
+            <select id="concreteGrade">
+                <option value="15">M15</option>
+                <option value="20">M20</option>
+                <option value="25">M25</option>
+                <option value="30">M30</option>
+            </select>
+
+            <label>5. Steel Grade (fy)</label>
+            <select id="steelGrade">
+                <option value="250">Mild Steel Fe250</option>
+                <option value="415">HYSD Fe415</option>
+                <option value="500">HYSD Fe500</option>
+            </select>
+
+            <button class="btn btn-calc" onclick="calculateDesign()">Calculate Design</button>
+            <button class="btn btn-group" onclick="showGroup()">Join Study Group</button>
+        </div>
+    </div>
+
+    <div id="outputPage" style="display:none;">
+        <div class="card">
+            <h2 style="margin-top:0; text-align:center; color:var(--primary);">Calculations (LSM)</h2>
+            <div id="resultsArea" class="calc-sheet"></div>
+            <button class="btn btn-back" onclick="goBack()">Back to Home</button>
+        </div>
+    </div>
+
+    <div id="groupPage" style="display:none;">
+        <div class="card" style="text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;">📢</div>
+            <h2 style="color:var(--primary);">Join Loksewa Group</h2>
+            <p style="color:#666;">Get daily notes, MCQs, and discuss doubts with fellow Sub-Engineers.</p>
+            <div class="link-display" id="waLink">https://chat.whatsapp.com/GpMpVmBo71RBZqLOf1l4PM?mode=gi_t</div>
+            <button class="btn btn-copy" onclick="copyLink()">📋 Copy Link</button>
+            <a href="https://chat.whatsapp.com/GpMpVmBo71RBZqLOf1l4PM?mode=gi_t" target="_blank" style="text-decoration:none;">
+                <button class="btn btn-group">🚀 Direct Join (WhatsApp)</button>
+            </a>
+            <button class="btn btn-back" onclick="goBack()">Back</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateDesign() {
+        const P_kn = parseFloat(document.getElementById('load').value);
+        const L_m = parseFloat(document.getElementById('length').value);
+        const K = parseFloat(document.getElementById('endCondition').value);
+        const fck = parseFloat(document.getElementById('concreteGrade').value);
+        const fy = parseFloat(document.getElementById('steelGrade').value);
+
+        if (!P_kn || !L_m) { alert("Please enter Load and Length!"); return; }
+
+        const Pu_kn = P_kn * 1.5; 
+        const Pu_N = Pu_kn * 1000;
+        const L_mm = L_m * 1000;
+        let html = "";
+
+        // --- STEP 1: FACTORED LOAD ---
+        const Leff = K * L_mm;
+        html += `<span class="step-title">Step 1: Factored Load & Effective Length</span>`;
+        html += `<div class="math-line">Service Load (P) = ${P_kn} KN</div>`;
+        html += `<div class="math-line"><strong>Factored Load (P<span class="sub">u</span>) = 1.5 × P</strong></div>`;
+        html += `<div class="math-line">= 1.5 × ${P_kn} = <strong>${Pu_kn} KN</strong> (${Pu_N} N)</div>`;
+        html += `<div class="math-line">Effective Length (L<span class="sub">eff</span>) = K × L</div>`;
+        html += `<div class="math-line">= ${K} × ${L_mm} = <b>${Leff.toFixed(0)} mm</b></div>`;
+
+        // --- STEP 2: SIZE DETERMINATION ---
+        html += `<span class="step-title">Step 2: Determine Size of Column</span>`;
+        html += `<div class="math-line">Assume Percentage of steel = 1%</div>`;
+        
+        // Pu = 0.4 fck Ac + 0.67 fy Asc
+        // Pu = 0.4 fck (0.99Ag) + 0.67 fy (0.01Ag)
+        let term1 = 0.4 * fck * 0.99;
+        let term2 = 0.67 * fy * 0.01;
+        let total_factor = term1 + term2;
+        
+        let Ag_req = Pu_N / total_factor;
+        let b_calc = Math.sqrt(Ag_req);
+        let b_prov = Math.ceil(b_calc / 10) * 10;
+        if(b_prov < 200) b_prov = 200; 
+        let initial_b = b_prov; 
+
+        html += `<div class="math-line">Formula: P<span class="sub">u</span> = 0.4 f<span class="sub">ck</span>A<span class="sub">c</span> + 0.67 f<span class="sub">y</span>A<span class="sub">sc</span></div>`;
+        html += `<div class="math-line">Substituting A<span class="sub">c</span>=0.99A<span class="sub">g</span> and A<span class="sub">sc</span>=0.01A<span class="sub">g</span>:</div>`;
+        html += `<div class="math-line">${Pu_N} = [${term1.toFixed(3)} + ${term2.toFixed(3)}] A<span class="sub">g</span></div>`;
+        html += `<div class="math-line">A<span class="sub">g</span> = ${Pu_N} / ${total_factor.toFixed(3)} = ${Ag_req.toFixed(2)} mm<span class="sup">2</span></div>`;
+        html += `<div class="math-line">Required Size (b) = √A<span class="sub">g</span> = ${b_calc.toFixed(2)} mm</div>`;
+        html += `<div class="math-line"><strong>Trial Size Provided: ${b_prov} mm × ${b_prov} mm</strong></div>`;
+
+        // --- STEP 3: SLENDERNESS CHECK (AUTO-FIX) ---
+        html += `<span class="step-title">Step 3: Slenderness Ratio Check</span>`;
+        
+        let lambda = Leff / b_prov;
+        let slendernessUpdated = false;
+
+        // Auto-Fix Loop for Long Column
+        while (lambda > 12) {
+            if(!slendernessUpdated) {
+                html += `<div class="fail-box"><strong>ALERT: Long Column Detected!</strong><br>
+                Trial Size: ${b_prov} mm<br>
+                λ = ${Leff} / ${b_prov} = <strong>${lambda.toFixed(2)} (> 12)</strong><br>
+                <em>Action: Automatically increasing size to make it Short...</em></div>`;
+            }
+            b_prov += 10;
+            lambda = Leff / b_prov;
+            slendernessUpdated = true;
+        }
+
+        if(slendernessUpdated) {
+            html += `<div class="math-line"><strong>New Size: ${b_prov} mm × ${b_prov} mm</strong></div>`;
+        }
+        
+        html += `<div class="math-line">Final λ = ${Leff} / ${b_prov} = <strong>${lambda.toFixed(2)} (< 12)</strong></div>`;
+        html += `<div class="math-line" style="color:#27ae60"><strong>SAFE: Short Column Design Valid.</strong></div>`;
+
+        // --- STEP 4: ECCENTRICITY CHECK ---
+        html += `<span class="step-title">Step 4: Minimum Eccentricity Check</span>`;
+        
+        let safe = false;
+        let iteration = 0;
+        let failedEcc = false;
+
+        while(!safe && iteration < 50) {
+            let emin = (L_mm/500) + (b_prov/30);
+            if(emin < 20) emin = 20;
+            let perm = 0.05 * b_prov;
+            
+            if(emin <= perm) {
+                safe = true;
+            } else { 
+                failedEcc = true;
+                if(iteration === 0) { // Only show first failure
+                    html += `<div class="fail-box"><strong>Eccentricity Check Failed!</strong><br>
+                    Size: ${b_prov} mm<br>
+                    e<span class="sub">min</span> (${emin.toFixed(2)}) > 0.05b (${perm.toFixed(2)})<br>
+                    <em>Action: Increasing size...</em></div>`;
+                }
+                b_prov += 10; 
+            }
+            iteration++;
+        }
+
+        let emin_final = (L_mm/500) + (b_prov/30);
+        let emin_calc_val = emin_final;
+        if(emin_final < 20) emin_final = 20;
+        let perm_final = 0.05 * b_prov;
+
+        html += `<div class="math-line">For Final Size <strong>${b_prov} mm</strong>:</div>`;
+        html += `<div class="math-line">e<span class="sub">min</span> = L/500 + b/30 = ${emin_calc_val.toFixed(2)} mm</div>`;
+        
+        if(emin_calc_val < 20) {
+            html += `<div class="math-line">(Since value < 20mm, adopt e<span class="sub">min</span> = 20mm)</div>`;
+        }
+        html += `<div class="math-line">Permissible = 0.05 × ${b_prov} = <strong>${perm_final.toFixed(2)} mm</strong></div>`;
+        html += `<div class="math-line" style="color:#27ae60; font-weight:bold;">SAFE (e<span class="sub">min</span> ≤ 0.05b).</div>`;
+
+        // --- STEP 5: LONGITUDINAL STEEL ---
+        html += `<span class="step-title">Step 5: Longitudinal Reinforcement</span>`;
+        let Ag_final = b_prov * b_prov;
+        
+        // Exact Calculation for Asc
+        let numerator = Pu_N - (0.4 * fck * Ag_final);
+        let denominator = (0.67 * fy) - (0.4 * fck);
+        let Asc_calc = numerator / denominator;
+
+        html += `<div class="math-line">Final Section: ${b_prov}mm × ${b_prov}mm (A<span class="sub">g</span> = ${Ag_final} mm<span class="sup">2</span>)</div>`;
+        
+        html += `<br><div class="math-line"><strong>Calculation Logic for A<span class="sub">sc</span>:</strong></div>`;
+        html += `<div class="math-line">We know, Total Area A<span class="sub">g</span> = A<span class="sub">c</span> + A<span class="sub">sc</span></div>`;
+        html += `<div class="math-line">Therefore, <strong>A<span class="sub">c</span> = A<span class="sub">g</span> - A<span class="sub">sc</span></strong></div>`;
+        html += `<div class="math-line">Substitute in Formula: P<span class="sub">u</span> = 0.4 f<span class="sub">ck</span>(A<span class="sub">g</span> - A<span class="sub">sc</span>) + 0.67 f<span class="sub">y</span>A<span class="sub">sc</span></div>`;
+        html += `<div class="math-line">Rearranging: <strong>A<span class="sub">sc</span> = [ P<span class="sub">u</span> - 0.4 f<span class="sub">ck</span>A<span class="sub">g</span> ] / (0.67 f<span class="sub">y</span> - 0.4 f<span class="sub">ck</span>)</strong></div>`;
+        
+        html += `<br><div class="math-line">A<span class="sub">sc</span> = [ ${Pu_N} - (0.4×${fck}×${Ag_final}) ] / (0.67×${fy} - 0.4×${fck})</div>`;
+        
+        if (Asc_calc < 0) {
+             html += `<div class="math-line" style="color:#c0392b;">Calculated A<span class="sub">sc</span> is Negative (${Asc_calc.toFixed(2)}).</div>`;
+             html += `<div class="math-line" style="font-size:0.9em; color:#666;">(Concrete alone is strong enough. Provide Minimum Steel.)</div>`;
+        } else {
+             html += `<div class="math-line">Calculated A<span class="sub">sc</span> = <strong>${Asc_calc.toFixed(2)} mm<span class="sup">2</span></strong></div>`;
+        }
+
+        // Min Steel
+        let min_st = 0.008 * Ag_final;
+        html += `<br><div class="math-line"><strong>Check Minimum Steel (0.8%):</strong></div>`;
+        html += `<div class="math-line">= 0.008 × A<span class="sub">g</span> = 0.008 × ${Ag_final}</div>`;
+        html += `<div class="math-line">= ${min_st.toFixed(2)} mm<span class="sup">2</span></div>`;
+
+        let Asc_final = Math.max(Asc_calc, min_st);
+        let remark = "";
+        
+        if (Asc_calc < min_st) {
+            remark = "Since Calculated Area < Minimum Area, we Provide <b>Minimum Steel</b>.";
+        } else {
+            remark = "Since Calculated Area > Minimum Area, we Provide <b>Calculated Steel</b>.";
+        }
+        
+        html += `<div class="result-highlight" style="margin-top:10px; display:inline-block;">Required A<span class="sub">sc</span> = ${Asc_final.toFixed(2)} mm<span class="sup">2</span></div>`;
+        html += `<div class="math-line" style="font-size:0.95em; color:#444; margin-top:5px;">(${remark})</div>`;
+
+        // Bar Numbers
+        html += `<br><br><div class="math-line"><strong>Number of Bars:</strong></div>`;
+        let bar_dia = 16;
+        let ast1 = (Math.PI * Math.pow(bar_dia,2))/4;
+        let n = Math.ceil(Asc_final / ast1);
+        
+        if(n > 8) { bar_dia = 20; ast1 = (Math.PI * Math.pow(bar_dia,2))/4; n = Math.ceil(Asc_final / ast1); }
+        if(n < 4) n = 4;
+        if(n % 2 !== 0) n++; 
+
+        html += `<div class="math-line">Using ${bar_dia} mm φ bars (Area = ${ast1.toFixed(1)} mm<span class="sup">2</span>):</div>`;
+        html += `<div class="math-line">No. = ${Asc_final.toFixed(1)} / ${ast1.toFixed(1)} = ${(Asc_final/ast1).toFixed(2)}</div>`;
+        html += `<div class="math-line"><strong>Provide ${n} nos of ${bar_dia} mm φ bars.</strong></div>`;
+
+        // --- STEP 6: LATERAL TIES ---
+        html += `<span class="step-title">Step 6: Lateral Ties Design</span>`;
+        let tie_dia = (bar_dia/4) > 6 ? 8 : 6;
+        let p1 = b_prov;
+        let p2 = 16 * bar_dia;
+        let p3 = 300;
+        let pitch = Math.min(p1, p2, p3);
+
+        html += `<div class="math-line">Diameter: Max(φ/4, 6mm) = <strong>${tie_dia} mm</strong></div>`;
+        html += `<div class="math-line">Pitch: Min(Least Dim, 16φ, 300)</div>`;
+        html += `<div class="math-line">= Min(${p1}, ${p2}, 300) = <strong>${pitch} mm c/c</strong></div>`;
+
+        // --- EXAM NOTE (CONDITIONAL) ---
+        if(slendernessUpdated || failedEcc) {
+            html += `<div class="note-box" style="display:block;">
+                <strong>💡 EXAM NOTE FOR STUDENTS:</strong><br>
+                The computer automatically increased the column size (from ${initial_b}mm to ${b_prov}mm) to satisfy Slenderness (Step 3) or Eccentricity (Step 4). 
+                <br>In your exam, if your checks fail, simply write: 
+                <br><em>"Increase section size to ${b_prov}mm (by 20-30%)"</em> and proceed.
+            </div>`;
+        }
+
+        document.getElementById('resultsArea').innerHTML = html;
+        document.getElementById('inputPage').style.display = 'none';
+        document.getElementById('outputPage').style.display = 'block';
+        window.scrollTo(0,0);
+    }
+
+    function showGroup() {
+        document.getElementById('inputPage').style.display = 'none';
+        document.getElementById('groupPage').style.display = 'block';
+    }
+
+    function goBack() {
+        document.getElementById('inputPage').style.display = 'block';
+        document.getElementById('outputPage').style.display = 'none';
+        document.getElementById('groupPage').style.display = 'none';
+    }
+
+    function copyLink() {
+        const link = document.getElementById('waLink').innerText;
+        navigator.clipboard.writeText(link).then(() => alert("Link Copied!"));
+    }
+</script>
+
+</body>
+</html>
         .result-highlight {
             background-color: rgba(39, 174, 96, 0.1);
             padding: 4px 8px;
@@ -415,4 +740,5 @@
 
 </body>
 </html>
+
 
